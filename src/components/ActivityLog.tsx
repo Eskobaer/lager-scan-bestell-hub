@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Activity, Search, Filter, Calendar, User, Package, Plus, Minus, Download, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,53 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-
-interface ActivityEntry {
-  id?: string;
-  type: 'in' | 'out' | 'create' | 'update' | 'delete';
-  articleNumber: string;
-  articleName: string;
-  quantity?: number;
-  reason?: string;
-  user: string;
-  timestamp: string;
-  newStock?: number;
-  oldStock?: number;
-  details?: Record<string, any>;
-}
+import { useActivities } from '@/hooks/useDatabase';
 
 const ActivityLog = () => {
-  const [activities, setActivities] = useState<ActivityEntry[]>([]);
+  const { activities, loading } = useActivities();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'in' | 'out' | 'create' | 'update' | 'delete'>('all');
   const [filterUser, setFilterUser] = useState('all');
   const [dateRange, setDateRange] = useState('all');
-  const [selectedActivity, setSelectedActivity] = useState<ActivityEntry | null>(null);
-
-  // Aktivitäten laden
-  useEffect(() => {
-    const loadActivities = () => {
-      const stockActivities = JSON.parse(localStorage.getItem('stockActivities') || '[]');
-      const articleActivities = JSON.parse(localStorage.getItem('articleActivities') || '[]');
-      
-      // Kombiniere alle Aktivitäten
-      const allActivities = [...stockActivities, ...articleActivities]
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, 200); // Letzte 200 Aktivitäten
-
-      setActivities(allActivities);
-    };
-
-    loadActivities();
-    
-    // Event Listener für Storage-Änderungen
-    const handleStorageChange = () => {
-      loadActivities();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
 
   // Eindeutige Benutzer extrahieren
   const uniqueUsers = [...new Set(activities.map(a => a.user))];
@@ -265,7 +227,12 @@ const ActivityLog = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {filteredActivities.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Activity className="h-12 w-12 mx-auto mb-2 opacity-50 animate-pulse" />
+                <p>Aktivitäten werden geladen...</p>
+              </div>
+            ) : filteredActivities.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>Keine Aktivitäten gefunden</p>

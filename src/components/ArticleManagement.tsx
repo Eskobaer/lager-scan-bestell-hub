@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useArticles } from '@/hooks/useDatabase';
 import ArticleForm, { Article } from './ArticleForm';
 
 const ArticleManagement = () => {
@@ -15,45 +16,7 @@ const ArticleManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const { toast } = useToast();
-  
-  const [articles, setArticles] = useState<Article[]>([
-    {
-      id: '1',
-      articleNumber: 'SCR-M8-20',
-      name: 'Schrauben M8x20',
-      description: 'Edelstahl Innensechskant Schrauben',
-      manufacturer: 'Würth',
-      currentStock: 5,
-      minimumStock: 50,
-      location: 'Regal A-12',
-      lastUpdated: '2025-01-03',
-      qrCode: 'QR_SCR-M8-20'
-    },
-    {
-      id: '2',
-      articleNumber: 'DIC-STD-01',
-      name: 'Dichtungsringe',
-      description: 'Standard O-Ring Set',
-      manufacturer: 'Fischer',
-      currentStock: 12,
-      minimumStock: 100,
-      location: 'Regal B-05',
-      lastUpdated: '2025-01-02',
-      qrCode: 'QR_DIC-STD-01'
-    },
-    {
-      id: '3',
-      articleNumber: 'KAB-200-SW',
-      name: 'Kabelbinder 200mm',
-      description: 'Schwarz, UV-beständig',
-      manufacturer: 'Hellermann Tyton',
-      currentStock: 150,
-      minimumStock: 200,
-      location: 'Regal C-08',
-      lastUpdated: '2025-01-01',
-      qrCode: 'QR_KAB-200-SW'
-    }
-  ]);
+  const { articles, loading, createArticle, updateArticle, deleteArticle } = useArticles();
 
   const filteredArticles = articles.filter(article =>
     article.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,53 +33,62 @@ const ArticleManagement = () => {
     return `QR_${articleNumber}`;
   };
 
-  const handleAddArticle = (articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
-    const newArticle: Article = {
-      ...articleData,
-      id: Date.now().toString(),
-      lastUpdated: new Date().toISOString().split('T')[0],
-      qrCode: generateQRCode(articleData.articleNumber)
-    };
-    
-    setArticles(prev => [...prev, newArticle]);
-    setIsDialogOpen(false);
-    
-    toast({
-      title: "Artikel hinzugefügt",
-      description: `${newArticle.name} wurde erfolgreich hinzugefügt.`,
-    });
+  const handleAddArticle = async (articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
+    try {
+      const newArticle = await createArticle(articleData);
+      setIsDialogOpen(false);
+      
+      toast({
+        title: "Artikel hinzugefügt",
+        description: `${newArticle.name} wurde erfolgreich hinzugefügt.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: "Artikel konnte nicht hinzugefügt werden.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleEditArticle = (articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
+  const handleEditArticle = async (articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
     if (!editingArticle) return;
     
-    const updatedArticle: Article = {
-      ...articleData,
-      id: editingArticle.id,
-      lastUpdated: new Date().toISOString().split('T')[0],
-      qrCode: editingArticle.qrCode || generateQRCode(articleData.articleNumber)
-    };
-    
-    setArticles(prev => prev.map(article => 
-      article.id === editingArticle.id ? updatedArticle : article
-    ));
-    setIsDialogOpen(false);
-    setEditingArticle(null);
-    
-    toast({
-      title: "Artikel aktualisiert",
-      description: `${updatedArticle.name} wurde erfolgreich aktualisiert.`,
-    });
+    try {
+      const updatedArticle = await updateArticle(editingArticle.id, articleData);
+      setIsDialogOpen(false);
+      setEditingArticle(null);
+      
+      toast({
+        title: "Artikel aktualisiert",
+        description: `${updatedArticle.name} wurde erfolgreich aktualisiert.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: "Artikel konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteArticle = (articleId: string) => {
+  const handleDeleteArticle = async (articleId: string) => {
     const article = articles.find(a => a.id === articleId);
-    setArticles(prev => prev.filter(a => a.id !== articleId));
     
-    toast({
-      title: "Artikel gelöscht",
-      description: `${article?.name} wurde erfolgreich gelöscht.`,
-    });
+    try {
+      await deleteArticle(articleId);
+      
+      toast({
+        title: "Artikel gelöscht",
+        description: `${article?.name} wurde erfolgreich gelöscht.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: "Artikel konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    }
   };
 
   const openAddDialog = () => {
@@ -164,7 +136,14 @@ const ArticleManagement = () => {
 
       {/* Artikel-Liste */}
       <div className="grid gap-6">
-        {filteredArticles.length === 0 ? (
+        {loading ? (
+          <Card className="animate-fade-in">
+            <CardContent className="pt-6 text-center">
+              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-pulse" />
+              <p className="text-muted-foreground">Artikel werden geladen...</p>
+            </CardContent>
+          </Card>
+        ) : filteredArticles.length === 0 ? (
           <Card className="animate-fade-in">
             <CardContent className="pt-6 text-center">
               <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
