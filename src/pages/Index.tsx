@@ -5,10 +5,13 @@ import ArticleManagement from '@/components/ArticleManagement';
 import QRScanner from '@/components/QRScanner';
 import LabelGenerator from '@/components/LabelGenerator';
 import ActivityLog from '@/components/ActivityLog';
+import UserManagement from '@/components/UserManagement';
 import MobileNavigation from '@/components/MobileNavigation';
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const { user } = useAuth();
 
   const renderActiveComponent = () => {
     switch (activeTab) {
@@ -22,6 +25,8 @@ const Index = () => {
         return <LabelGenerator />;
       case 'log':
         return <ActivityLog />;
+      case 'users':
+        return <UserManagement />;
       default:
         return <Dashboard />;
     }
@@ -41,9 +46,16 @@ const Index = () => {
                 Intelligente Lagerverwaltung mit QR-Codes
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-success rounded-full animate-pulse"></div>
-              <span className="text-sm text-muted-foreground">Online</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-success rounded-full animate-pulse"></div>
+                <span className="text-sm text-muted-foreground">Online</span>
+              </div>
+              {user && (
+                <div className="text-sm text-muted-foreground">
+                  Angemeldet als: <span className="font-medium text-foreground">{user.username}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

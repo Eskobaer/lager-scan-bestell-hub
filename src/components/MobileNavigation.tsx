@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { LayoutDashboard, Package, QrCode, Tag, Clock } from 'lucide-react';
+import { LayoutDashboard, Package, QrCode, Tag, Clock, Users, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface NavigationProps {
   activeTab: string;
@@ -8,7 +9,9 @@ interface NavigationProps {
 }
 
 const MobileNavigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
-  const tabs = [
+  const { isSuperAdmin, logout } = useAuth();
+  
+  const baseTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'articles', label: 'Artikel', icon: Package },
     { id: 'scanner', label: 'Scanner', icon: QrCode },
@@ -16,9 +19,15 @@ const MobileNavigation: React.FC<NavigationProps> = ({ activeTab, onTabChange })
     { id: 'log', label: 'Protokoll', icon: Clock }
   ];
 
+  const adminTabs = isSuperAdmin ? [
+    { id: 'users', label: 'Benutzer', icon: Users }
+  ] : [];
+
+  const tabs = [...baseTabs, ...adminTabs];
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      <div className="grid grid-cols-5">
+      <div className={`grid ${isSuperAdmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
         {tabs.map((tab) => {
           const IconComponent = tab.icon;
           const isActive = activeTab === tab.id;
@@ -38,6 +47,13 @@ const MobileNavigation: React.FC<NavigationProps> = ({ activeTab, onTabChange })
             </button>
           );
         })}
+        <button
+          onClick={logout}
+          className="flex flex-col items-center gap-1 py-2 px-1 transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="text-xs font-medium">Logout</span>
+        </button>
       </div>
     </nav>
   );

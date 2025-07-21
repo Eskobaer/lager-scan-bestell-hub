@@ -85,6 +85,22 @@ class InventoryDatabase {
   }
 
   private initTables() {
+    // Users table
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        email TEXT,
+        firstName TEXT,
+        lastName TEXT,
+        isActive INTEGER DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        lastLogin TEXT
+      )
+    `);
+
     // Articles table
     this.db.run(`
       CREATE TABLE IF NOT EXISTS articles (
@@ -136,6 +152,30 @@ class InventoryDatabase {
   }
 
   private insertMockData() {
+    // Check and insert initial superadmin user
+    const userStmt = this.db.prepare('SELECT COUNT(*) as count FROM users');
+    userStmt.step();
+    const userResult = userStmt.getAsObject();
+    const userCount = userResult.count;
+    
+    if (userCount === 0) {
+      // Create initial superadmin user
+      this.db.run(`
+        INSERT INTO users (id, username, password, role, email, firstName, lastName, isActive, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        '1',
+        'admin',
+        'admin', // In production this should be hashed
+        'superadmin',
+        'admin@example.com',
+        'Super',
+        'Admin',
+        1,
+        new Date().toISOString()
+      ]);
+    }
+    
     const stmt = this.db.prepare('SELECT COUNT(*) as count FROM articles');
     stmt.step();
     const result = stmt.getAsObject();
@@ -529,6 +569,102 @@ class InventoryDatabase {
     }));
   }
 
+  // User management operations
+  authenticateUser(username: string, password: string): User | null {
+    const stmt = this.db.prepare('SELECT * FROM users WHERE username = ? AND password = ? AND isActive = 1');
+    stmt.bind([username, password]);
+    if (stmt.step()) {
+      const result = stmt.getAsObject();
+      
+      // Update last login
+      this.db.run('UPDATE users SET lastLogin = ? WHERE id = ?', [
+        new Date().toISOString(),
+        result.id
+      ]);
+      this.saveToLocalStorage();
+      
+      stmt.free();
+      return result as User;
+    }
+    stmt.free();
+    return null;
+  }
+
+  getAllUsers(): User[] {
+    const stmt = this.db.prepare('SELECT * FROM users ORDER BY username');
+    const results = [];
+    while (stmt.step()) {
+      results.push(stmt.getAsObject());
+    }
+    stmt.free();
+    return results.map((row: any) => ({
+      id: row.id,
+      username: row.username,
+      password: row.password,
+      role: row.role,
+      email: row.email,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      isActive: row.isActive === 1,
+      createdAt: row.createdAt,
+      lastLogin: row.lastLogin
+    }));
+  }
+
+  createUser(user: Omit<User, 'id' | 'createdAt' | 'lastLogin'>): User {
+    const id = Date.now().toString();
+    const createdAt = new Date().toISOString();
+
+    this.db.run(`
+      INSERT INTO users (id, username, password, role, email, firstName, lastName, isActive, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      id,
+      user.username,
+      user.password,
+      user.role,
+      user.email,
+      user.firstName,
+      user.lastName,
+      user.isActive ? 1 : 0,
+      createdAt
+    ]);
+
+    this.saveToLocalStorage();
+    return { ...user, id, createdAt, lastLogin: null };
+  }
+
+  updateUser(id: string, user: Omit<User, 'id' | 'createdAt' | 'lastLogin'>): User {
+    const stmt = this.db.prepare('SELECT * FROM users WHERE id = ?');
+    stmt.bind([id]);
+    stmt.step();
+    const existing = stmt.getAsObject() as User;
+    stmt.free();
+
+    this.db.run(`
+      UPDATE users 
+      SET username = ?, password = ?, role = ?, email = ?, firstName = ?, lastName = ?, isActive = ?
+      WHERE id = ?
+    `, [
+      user.username,
+      user.password,
+      user.role,
+      user.email,
+      user.firstName,
+      user.lastName,
+      user.isActive ? 1 : 0,
+      id
+    ]);
+
+    this.saveToLocalStorage();
+    return { ...user, id, createdAt: existing.createdAt, lastLogin: existing.lastLogin };
+  }
+
+  deleteUser(id: string): void {
+    this.db.run('DELETE FROM users WHERE id = ?', [id]);
+    this.saveToLocalStorage();
+  }
+
   close() {
     if (this.db) {
       this.db.close();
@@ -562,5 +698,20 @@ export const getDatabase = (): Promise<InventoryDatabase> => {
 
   return initPromise;
 };
+
+export interface User {
+  id: string;
+  username: string;
+  password: string;
+  role: 'user' | 'admin' | 'superadmin';
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  isActive: boolean;
+  createdAt: string;
+  lastLogin?: string | null;
+}
+
+export const database = new InventoryDatabase();
 
 export type { Article, StockBooking, ActivityEntry };
