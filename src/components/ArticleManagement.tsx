@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useArticles } from '@/hooks/useDatabase';
+import { useArticles } from '@/hooks/useDatabaseLazy';
 import ArticleForm, { Article } from './ArticleForm';
 
 const ArticleManagement = () => {
