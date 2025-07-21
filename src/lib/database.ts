@@ -42,12 +42,14 @@ class InventoryDatabase {
         locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/${file}`
       });
 
-      // Try to load existing database from localStorage
-      const data = localStorage.getItem('inventory-db');
+      // Try to load existing Lagerbestand.db from localStorage
+      const data = localStorage.getItem('lagerbestand-db');
       if (data) {
+        console.log('Lade bestehende Lagerbestand.db Datenbank...');
         const uint8Array = new Uint8Array(JSON.parse(data));
         this.db = new this.SQL.Database(uint8Array);
       } else {
+        console.log('Erstelle neue Lagerbestand.db Datenbank...');
         this.db = new this.SQL.Database();
       }
 
@@ -63,8 +65,23 @@ class InventoryDatabase {
   private saveToLocalStorage() {
     if (this.db) {
       const data = this.db.export();
-      localStorage.setItem('inventory-db', JSON.stringify(Array.from(data)));
+      localStorage.setItem('lagerbestand-db', JSON.stringify(Array.from(data)));
+      console.log('Lagerbestand.db gespeichert - Datenbankgröße:', data.length, 'Bytes');
     }
+  }
+
+  // Funktion zum Exportieren der Datenbank als herunterladbare Datei
+  exportDatabase(): Blob {
+    const data = this.db.export();
+    return new Blob([data], { type: 'application/x-sqlite3' });
+  }
+
+  // Funktion zum Importieren einer Datenbankdatei
+  async importDatabase(file: File): Promise<void> {
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    this.db = new this.SQL.Database(uint8Array);
+    this.saveToLocalStorage();
   }
 
   private initTables() {
@@ -120,10 +137,12 @@ class InventoryDatabase {
 
   private insertMockData() {
     const stmt = this.db.prepare('SELECT COUNT(*) as count FROM articles');
-    const result = stmt.get();
-    const count = result[0];
+    stmt.step();
+    const result = stmt.getAsObject();
+    const count = result.count;
     
     if (count === 0) {
+      // Umfangreiche Lagerdaten für die Lagerbestand.db
       const mockArticles: Article[] = [
         {
           id: '1',
@@ -160,6 +179,90 @@ class InventoryDatabase {
           location: 'Regal C-08',
           lastUpdated: '2025-01-21',
           qrCode: 'QR_KAB-200-SW'
+        },
+        {
+          id: '4',
+          articleNumber: 'MUT-M8-STD',
+          name: 'Muttern M8',
+          description: 'Sechskantmuttern M8, verzinkt',
+          manufacturer: 'Würth',
+          currentStock: 320,
+          minimumStock: 100,
+          location: 'Regal A-13',
+          lastUpdated: '2025-01-21',
+          qrCode: 'QR_MUT-M8-STD'
+        },
+        {
+          id: '5',
+          articleNumber: 'LED-12V-5M',
+          name: 'LED-Strip 12V',
+          description: 'LED-Streifen 5m, warmweiß, IP65',
+          manufacturer: 'Philips',
+          currentStock: 45,
+          minimumStock: 20,
+          location: 'Regal D-02',
+          lastUpdated: '2025-01-21',
+          qrCode: 'QR_LED-12V-5M'
+        },
+        {
+          id: '6',
+          articleNumber: 'BOH-10MM-HSS',
+          name: 'Bohrer 10mm HSS',
+          description: 'Spiralbohrer HSS, geschliffen',
+          manufacturer: 'Bosch',
+          currentStock: 12,
+          minimumStock: 25,
+          location: 'Regal E-15',
+          lastUpdated: '2025-01-21',
+          qrCode: 'QR_BOH-10MM-HSS'
+        },
+        {
+          id: '7',
+          articleNumber: 'KLE-EPOXY-2K',
+          name: 'Epoxidkleber 2K',
+          description: '2-Komponenten Epoxidharz, 500ml',
+          manufacturer: 'Henkel',
+          currentStock: 8,
+          minimumStock: 15,
+          location: 'Regal F-03',
+          lastUpdated: '2025-01-21',
+          qrCode: 'QR_KLE-EPOXY-2K'
+        },
+        {
+          id: '8',
+          articleNumber: 'ROR-PVC-32',
+          name: 'PVC-Rohr 32mm',
+          description: 'PVC-Rohr 32mm, 2m Länge',
+          manufacturer: 'Geberit',
+          currentStock: 78,
+          minimumStock: 30,
+          location: 'Lager Außen',
+          lastUpdated: '2025-01-21',
+          qrCode: 'QR_ROR-PVC-32'
+        },
+        {
+          id: '9',
+          articleNumber: 'ISO-BAND-20',
+          name: 'Isolierband 20m',
+          description: 'Elektriker-Isolierband, schwarz',
+          manufacturer: '3M',
+          currentStock: 156,
+          minimumStock: 50,
+          location: 'Regal D-07',
+          lastUpdated: '2025-01-21',
+          qrCode: 'QR_ISO-BAND-20'
+        },
+        {
+          id: '10',
+          articleNumber: 'FIL-M5-20',
+          name: 'Gewindestange M5',
+          description: 'Gewindestange M5x1000mm, verzinkt',
+          manufacturer: 'Fischer',
+          currentStock: 24,
+          minimumStock: 40,
+          location: 'Regal A-20',
+          lastUpdated: '2025-01-21',
+          qrCode: 'QR_FIL-M5-20'
         }
       ];
 
@@ -192,7 +295,11 @@ class InventoryDatabase {
   // Article CRUD operations
   getAllArticles(): Article[] {
     const stmt = this.db.prepare('SELECT * FROM articles ORDER BY name');
-    const results = stmt.getAsObject();
+    const results = [];
+    while (stmt.step()) {
+      results.push(stmt.getAsObject());
+    }
+    stmt.free();
     return results.map((row: any) => ({
       id: row.id,
       articleNumber: row.articleNumber,
@@ -209,8 +316,14 @@ class InventoryDatabase {
 
   getArticleByNumber(articleNumber: string): Article | null {
     const stmt = this.db.prepare('SELECT * FROM articles WHERE articleNumber = ?');
-    const results = stmt.getAsObject([articleNumber]);
-    return results.length > 0 ? results[0] as Article : null;
+    stmt.bind([articleNumber]);
+    if (stmt.step()) {
+      const result = stmt.getAsObject();
+      stmt.free();
+      return result as Article;
+    }
+    stmt.free();
+    return null;
   }
 
   createArticle(article: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>): Article {
@@ -244,8 +357,10 @@ class InventoryDatabase {
     const lastUpdated = new Date().toISOString().split('T')[0];
     
     const existingStmt = this.db.prepare('SELECT * FROM articles WHERE id = ?');
-    const existingResults = existingStmt.getAsObject([id]);
-    const existing = existingResults[0] as Article;
+    existingStmt.bind([id]);
+    existingStmt.step();
+    const existing = existingStmt.getAsObject() as Article;
+    existingStmt.free();
 
     this.db.run(`
       UPDATE articles 
@@ -275,8 +390,10 @@ class InventoryDatabase {
 
   deleteArticle(id: string): void {
     const stmt = this.db.prepare('SELECT * FROM articles WHERE id = ?');
-    const results = stmt.getAsObject([id]);
-    const article = results[0] as Article;
+    stmt.bind([id]);
+    stmt.step();
+    const article = stmt.getAsObject() as Article;
+    stmt.free();
     
     this.db.run('DELETE FROM articles WHERE id = ?', [id]);
     
@@ -343,7 +460,11 @@ class InventoryDatabase {
 
   getAllStockBookings(): StockBooking[] {
     const stmt = this.db.prepare('SELECT * FROM stock_bookings ORDER BY timestamp DESC');
-    const results = stmt.getAsObject();
+    const results = [];
+    while (stmt.step()) {
+      results.push(stmt.getAsObject());
+    }
+    stmt.free();
     return results.map((row: any) => ({
       id: row.id,
       type: row.type,
@@ -388,7 +509,11 @@ class InventoryDatabase {
 
   getAllActivities(): ActivityEntry[] {
     const stmt = this.db.prepare('SELECT * FROM activity_log ORDER BY timestamp DESC LIMIT 200');
-    const results = stmt.getAsObject();
+    const results = [];
+    while (stmt.step()) {
+      results.push(stmt.getAsObject());
+    }
+    stmt.free();
     return results.map((row: any) => ({
       id: row.id,
       type: row.type,
