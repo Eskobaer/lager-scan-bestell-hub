@@ -413,13 +413,29 @@ class InventoryDatabase {
 
 // Singleton instance
 let dbInstance: InventoryDatabase | null = null;
+let initPromise: Promise<InventoryDatabase> | null = null;
 
-export const getDatabase = async (): Promise<InventoryDatabase> => {
-  if (!dbInstance) {
-    dbInstance = new InventoryDatabase();
-    await dbInstance.init();
+export const getDatabase = (): Promise<InventoryDatabase> => {
+  if (initPromise) {
+    return initPromise;
   }
-  return dbInstance;
+  
+  if (dbInstance) {
+    return Promise.resolve(dbInstance);
+  }
+
+  initPromise = (async () => {
+    try {
+      dbInstance = new InventoryDatabase();
+      await dbInstance.init();
+      return dbInstance;
+    } catch (error) {
+      initPromise = null; // Reset on error to allow retry
+      throw error;
+    }
+  })();
+
+  return initPromise;
 };
 
 export type { Article, StockBooking, ActivityEntry };

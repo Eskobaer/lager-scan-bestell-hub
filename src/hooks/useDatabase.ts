@@ -5,14 +5,17 @@ import type { Article, StockBooking, ActivityEntry } from '@/lib/database';
 export const useArticles = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadArticles = async () => {
     try {
+      setError(null);
       const db = await getDatabase();
       const data = db.getAllArticles();
       setArticles(data);
     } catch (error) {
       console.error('Error loading articles:', error);
+      setError('Failed to load articles');
     } finally {
       setLoading(false);
     }
@@ -54,12 +57,18 @@ export const useArticles = () => {
   };
 
   useEffect(() => {
-    loadArticles();
+    // Defer initialization to prevent blocking React startup
+    const timer = setTimeout(() => {
+      loadArticles();
+    }, 0);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return {
     articles,
     loading,
+    error,
     createArticle,
     updateArticle,
     deleteArticle,
