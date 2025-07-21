@@ -1,4 +1,6 @@
 import initSqlJs from 'sql.js';
+import { toast } from '@/hooks/use-toast';
+import { EmailService } from '@/services/emailService';
 import { Article } from '@/components/ArticleForm';
 
 interface StockBooking {
@@ -493,6 +495,10 @@ class InventoryDatabase {
       booking.user,
       { oldStock, newStock }
     );
+
+    // Prüfe Mindestbestand und sende E-Mail-Benachrichtigung
+    this.checkStockLevel(article, newStock);
+
     this.saveToLocalStorage();
 
     return { ...booking, id, articleName: article.name, timestamp, oldStock, newStock };
@@ -545,6 +551,35 @@ class InventoryDatabase {
       details?.oldStock || null,
       details ? JSON.stringify(details) : null
     ]);
+  }
+
+  // E-Mail-Benachrichtigung bei Mindestbestand
+  private async checkStockLevel(article: Article, newStock: number): Promise<void> {
+    // Prüfe, ob der neue Bestand den Mindestbestand erreicht oder unterschreitet
+    if (newStock <= article.minimumStock) {
+      try {
+        const success = await EmailService.sendStockAlert({
+          articleName: article.name,
+          articleNumber: article.articleNumber,
+          currentStock: newStock,
+          minimumStock: article.minimumStock,
+          location: article.location || 'Unbekannt'
+        });
+
+        if (success) {
+          console.log(`E-Mail-Benachrichtigung für Mindestbestand gesendet: ${article.name}`);
+          
+          // Aktivität protokollieren
+          this.logActivity('out', article.articleNumber, article.name, undefined, 'E-Mail-Benachrichtigung gesendet', 'System', {
+            alertType: 'minimum_stock',
+            currentStock: newStock,
+            minimumStock: article.minimumStock
+          });
+        }
+      } catch (error) {
+        console.error('Fehler beim Senden der E-Mail-Benachrichtigung:', error);
+      }
+    }
   }
 
   getAllActivities(): ActivityEntry[] {

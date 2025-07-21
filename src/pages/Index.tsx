@@ -5,6 +5,7 @@ import ArticleManagement from '@/components/ArticleManagement';
 import QRScanner from '@/components/QRScanner';
 import LabelGenerator from '@/components/LabelGenerator';
 import ActivityLog from '@/components/ActivityLog';
+import EmailSettings from '@/components/EmailSettings';
 import UserManagement from '@/components/UserManagement';
 import MobileNavigation from '@/components/MobileNavigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +26,8 @@ const Index = () => {
         return <LabelGenerator />;
       case 'log':
         return <ActivityLog />;
+      case 'email':
+        return <EmailSettings />;
       case 'users':
         return <UserManagement />;
       default:

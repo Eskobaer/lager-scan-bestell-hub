@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Package, QrCode, Tag, Clock, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, QrCode, Tag, Clock, Mail, Users, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface NavigationProps {
@@ -16,7 +16,8 @@ const MobileNavigation: React.FC<NavigationProps> = ({ activeTab, onTabChange })
     { id: 'articles', label: 'Artikel', icon: Package },
     { id: 'scanner', label: 'Scanner', icon: QrCode },
     { id: 'labels', label: 'Schilder', icon: Tag },
-    { id: 'log', label: 'Protokoll', icon: Clock }
+    { id: 'log', label: 'Protokoll', icon: Clock },
+    { id: 'email', label: 'E-Mail', icon: Mail }
   ];
 
   const adminTabs = isSuperAdmin ? [
@@ -27,7 +28,7 @@ const MobileNavigation: React.FC<NavigationProps> = ({ activeTab, onTabChange })
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      <div className={`grid ${isSuperAdmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
+      <div className={`grid ${isSuperAdmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
         {tabs.map((tab) => {
           const IconComponent = tab.icon;
           const isActive = activeTab === tab.id;
