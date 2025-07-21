@@ -8,7 +8,7 @@ export const useArticles = () => {
 
   const loadArticles = async () => {
     try {
-      const db = getDatabase();
+      const db = await getDatabase();
       const data = db.getAllArticles();
       setArticles(data);
     } catch (error) {
@@ -20,7 +20,7 @@ export const useArticles = () => {
 
   const createArticle = async (articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
     try {
-      const db = getDatabase();
+      const db = await getDatabase();
       const newArticle = db.createArticle(articleData);
       await loadArticles(); // Reload to get fresh data
       return newArticle;
@@ -32,7 +32,7 @@ export const useArticles = () => {
 
   const updateArticle = async (id: string, articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
     try {
-      const db = getDatabase();
+      const db = await getDatabase();
       const updatedArticle = db.updateArticle(id, articleData);
       await loadArticles(); // Reload to get fresh data
       return updatedArticle;
@@ -44,7 +44,7 @@ export const useArticles = () => {
 
   const deleteArticle = async (id: string) => {
     try {
-      const db = getDatabase();
+      const db = await getDatabase();
       db.deleteArticle(id);
       await loadArticles(); // Reload to get fresh data
     } catch (error) {
@@ -73,7 +73,7 @@ export const useStockBookings = () => {
 
   const loadBookings = async () => {
     try {
-      const db = getDatabase();
+      const db = await getDatabase();
       const data = db.getAllStockBookings();
       setBookings(data);
     } catch (error) {
@@ -85,7 +85,7 @@ export const useStockBookings = () => {
 
   const createBooking = async (bookingData: Omit<StockBooking, 'id' | 'articleName' | 'timestamp' | 'oldStock' | 'newStock'>) => {
     try {
-      const db = getDatabase();
+      const db = await getDatabase();
       const newBooking = db.createStockBooking(bookingData);
       await loadBookings(); // Reload to get fresh data
       return newBooking;
@@ -113,7 +113,7 @@ export const useActivities = () => {
 
   const loadActivities = async () => {
     try {
-      const db = getDatabase();
+      const db = await getDatabase();
       const data = db.getAllActivities();
       setActivities(data);
     } catch (error) {

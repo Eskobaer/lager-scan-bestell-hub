@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import initSqlJs from 'sql.js';
 import { Article } from '@/components/ArticleForm';
 
 interface StockBooking {
@@ -29,17 +29,47 @@ interface ActivityEntry {
 }
 
 class InventoryDatabase {
-  private db: Database.Database;
+  private db: any = null;
+  private SQL: any = null;
+  private isInitialized = false;
 
-  constructor() {
-    this.db = new Database('inventory.db');
-    this.initTables();
-    this.insertMockData();
+  async init() {
+    if (this.isInitialized) return;
+
+    try {
+      // Initialize sql.js
+      this.SQL = await initSqlJs({
+        locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/${file}`
+      });
+
+      // Try to load existing database from localStorage
+      const data = localStorage.getItem('inventory-db');
+      if (data) {
+        const uint8Array = new Uint8Array(JSON.parse(data));
+        this.db = new this.SQL.Database(uint8Array);
+      } else {
+        this.db = new this.SQL.Database();
+      }
+
+      this.initTables();
+      this.insertMockData();
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
+      throw error;
+    }
+  }
+
+  private saveToLocalStorage() {
+    if (this.db) {
+      const data = this.db.export();
+      localStorage.setItem('inventory-db', JSON.stringify(Array.from(data)));
+    }
   }
 
   private initTables() {
     // Articles table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS articles (
         id TEXT PRIMARY KEY,
         articleNumber TEXT UNIQUE NOT NULL,
@@ -55,7 +85,7 @@ class InventoryDatabase {
     `);
 
     // Stock bookings table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS stock_bookings (
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL CHECK (type IN ('in', 'out')),
@@ -66,13 +96,12 @@ class InventoryDatabase {
         user TEXT NOT NULL,
         timestamp TEXT NOT NULL,
         oldStock INTEGER NOT NULL,
-        newStock INTEGER NOT NULL,
-        FOREIGN KEY (articleNumber) REFERENCES articles (articleNumber)
+        newStock INTEGER NOT NULL
       )
     `);
 
     // Activity log table
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS activity_log (
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL CHECK (type IN ('in', 'out', 'create', 'update', 'delete')),
@@ -90,9 +119,11 @@ class InventoryDatabase {
   }
 
   private insertMockData() {
-    const count = this.db.prepare('SELECT COUNT(*) as count FROM articles').get() as { count: number };
+    const stmt = this.db.prepare('SELECT COUNT(*) as count FROM articles');
+    const result = stmt.get();
+    const count = result[0];
     
-    if (count.count === 0) {
+    if (count === 0) {
       const mockArticles: Article[] = [
         {
           id: '1',
@@ -132,18 +163,11 @@ class InventoryDatabase {
         }
       ];
 
-      const insertArticle = this.db.prepare(`
-        INSERT INTO articles (id, articleNumber, name, description, manufacturer, currentStock, minimumStock, location, lastUpdated, qrCode)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      const insertActivity = this.db.prepare(`
-        INSERT INTO activity_log (id, type, articleNumber, articleName, user, timestamp, details)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `);
-
       mockArticles.forEach(article => {
-        insertArticle.run(
+        this.db.run(`
+          INSERT INTO articles (id, articleNumber, name, description, manufacturer, currentStock, minimumStock, location, lastUpdated, qrCode)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
           article.id,
           article.articleNumber,
           article.name,
@@ -154,30 +178,39 @@ class InventoryDatabase {
           article.location,
           article.lastUpdated,
           article.qrCode
-        );
+        ]);
 
-        insertActivity.run(
-          `init_${article.id}`,
-          'create',
-          article.articleNumber,
-          article.name,
-          'System',
-          new Date().toLocaleString('de-DE'),
-          JSON.stringify({ initialData: true })
-        );
+        this.logActivity('create', article.articleNumber, article.name, undefined, undefined, 'System', {
+          initialData: true
+        });
       });
+
+      this.saveToLocalStorage();
     }
   }
 
   // Article CRUD operations
   getAllArticles(): Article[] {
     const stmt = this.db.prepare('SELECT * FROM articles ORDER BY name');
-    return stmt.all() as Article[];
+    const results = stmt.getAsObject();
+    return results.map((row: any) => ({
+      id: row.id,
+      articleNumber: row.articleNumber,
+      name: row.name,
+      description: row.description,
+      manufacturer: row.manufacturer,
+      currentStock: row.currentStock,
+      minimumStock: row.minimumStock,
+      location: row.location,
+      lastUpdated: row.lastUpdated,
+      qrCode: row.qrCode
+    }));
   }
 
   getArticleByNumber(articleNumber: string): Article | null {
     const stmt = this.db.prepare('SELECT * FROM articles WHERE articleNumber = ?');
-    return stmt.get(articleNumber) as Article | null;
+    const results = stmt.getAsObject([articleNumber]);
+    return results.length > 0 ? results[0] as Article : null;
   }
 
   createArticle(article: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>): Article {
@@ -185,12 +218,10 @@ class InventoryDatabase {
     const lastUpdated = new Date().toISOString().split('T')[0];
     const qrCode = `QR_${article.articleNumber}`;
 
-    const stmt = this.db.prepare(`
+    this.db.run(`
       INSERT INTO articles (id, articleNumber, name, description, manufacturer, currentStock, minimumStock, location, lastUpdated, qrCode)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
+    `, [
       id,
       article.articleNumber,
       article.name,
@@ -201,26 +232,27 @@ class InventoryDatabase {
       article.location,
       lastUpdated,
       qrCode
-    );
+    ]);
 
-    // Log activity
     this.logActivity('create', article.articleNumber, article.name, undefined, undefined, 'Demo User');
+    this.saveToLocalStorage();
 
     return { ...article, id, lastUpdated, qrCode };
   }
 
   updateArticle(id: string, article: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>): Article {
     const lastUpdated = new Date().toISOString().split('T')[0];
-    const existing = this.db.prepare('SELECT * FROM articles WHERE id = ?').get(id) as Article;
+    
+    const existingStmt = this.db.prepare('SELECT * FROM articles WHERE id = ?');
+    const existingResults = existingStmt.getAsObject([id]);
+    const existing = existingResults[0] as Article;
 
-    const stmt = this.db.prepare(`
+    this.db.run(`
       UPDATE articles 
       SET articleNumber = ?, name = ?, description = ?, manufacturer = ?, 
           currentStock = ?, minimumStock = ?, location = ?, lastUpdated = ?
       WHERE id = ?
-    `);
-
-    stmt.run(
+    `, [
       article.articleNumber,
       article.name,
       article.description,
@@ -230,24 +262,26 @@ class InventoryDatabase {
       article.location,
       lastUpdated,
       id
-    );
+    ]);
 
-    // Log activity
     this.logActivity('update', article.articleNumber, article.name, undefined, undefined, 'Demo User', {
       oldData: existing,
       newData: article
     });
+    this.saveToLocalStorage();
 
     return { ...article, id, lastUpdated, qrCode: existing.qrCode };
   }
 
   deleteArticle(id: string): void {
-    const article = this.db.prepare('SELECT * FROM articles WHERE id = ?').get(id) as Article;
+    const stmt = this.db.prepare('SELECT * FROM articles WHERE id = ?');
+    const results = stmt.getAsObject([id]);
+    const article = results[0] as Article;
     
-    this.db.prepare('DELETE FROM articles WHERE id = ?').run(id);
+    this.db.run('DELETE FROM articles WHERE id = ?', [id]);
     
-    // Log activity
     this.logActivity('delete', article.articleNumber, article.name, undefined, undefined, 'Demo User');
+    this.saveToLocalStorage();
   }
 
   // Stock booking operations
@@ -270,16 +304,17 @@ class InventoryDatabase {
     const timestamp = new Date().toLocaleString('de-DE');
 
     // Update article stock
-    this.db.prepare('UPDATE articles SET currentStock = ?, lastUpdated = ? WHERE articleNumber = ?')
-      .run(newStock, new Date().toISOString().split('T')[0], booking.articleNumber);
+    this.db.run('UPDATE articles SET currentStock = ?, lastUpdated = ? WHERE articleNumber = ?', [
+      newStock, 
+      new Date().toISOString().split('T')[0], 
+      booking.articleNumber
+    ]);
 
     // Insert booking
-    const bookingStmt = this.db.prepare(`
+    this.db.run(`
       INSERT INTO stock_bookings (id, type, articleNumber, articleName, quantity, reason, user, timestamp, oldStock, newStock)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    bookingStmt.run(
+    `, [
       id,
       booking.type,
       booking.articleNumber,
@@ -290,9 +325,8 @@ class InventoryDatabase {
       timestamp,
       oldStock,
       newStock
-    );
+    ]);
 
-    // Log activity
     this.logActivity(
       booking.type,
       booking.articleNumber,
@@ -302,13 +336,26 @@ class InventoryDatabase {
       booking.user,
       { oldStock, newStock }
     );
+    this.saveToLocalStorage();
 
     return { ...booking, id, articleName: article.name, timestamp, oldStock, newStock };
   }
 
   getAllStockBookings(): StockBooking[] {
     const stmt = this.db.prepare('SELECT * FROM stock_bookings ORDER BY timestamp DESC');
-    return stmt.all() as StockBooking[];
+    const results = stmt.getAsObject();
+    return results.map((row: any) => ({
+      id: row.id,
+      type: row.type,
+      articleNumber: row.articleNumber,
+      articleName: row.articleName,
+      quantity: row.quantity,
+      reason: row.reason,
+      user: row.user,
+      timestamp: row.timestamp,
+      oldStock: row.oldStock,
+      newStock: row.newStock
+    }));
   }
 
   // Activity log operations
@@ -321,42 +368,56 @@ class InventoryDatabase {
     user: string = 'System',
     details?: any
   ): void {
-    const stmt = this.db.prepare(`
+    this.db.run(`
       INSERT INTO activity_log (id, type, articleNumber, articleName, quantity, reason, user, timestamp, newStock, oldStock, details)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
+    `, [
       Date.now().toString() + Math.random().toString(36).substr(2, 9),
       type,
       articleNumber,
       articleName,
-      quantity,
-      reason,
+      quantity || null,
+      reason || null,
       user,
       new Date().toLocaleString('de-DE'),
-      details?.newStock,
-      details?.oldStock,
+      details?.newStock || null,
+      details?.oldStock || null,
       details ? JSON.stringify(details) : null
-    );
+    ]);
   }
 
   getAllActivities(): ActivityEntry[] {
     const stmt = this.db.prepare('SELECT * FROM activity_log ORDER BY timestamp DESC LIMIT 200');
-    return stmt.all() as ActivityEntry[];
+    const results = stmt.getAsObject();
+    return results.map((row: any) => ({
+      id: row.id,
+      type: row.type,
+      articleNumber: row.articleNumber,
+      articleName: row.articleName,
+      quantity: row.quantity,
+      reason: row.reason,
+      user: row.user,
+      timestamp: row.timestamp,
+      newStock: row.newStock,
+      oldStock: row.oldStock,
+      details: row.details
+    }));
   }
 
   close() {
-    this.db.close();
+    if (this.db) {
+      this.db.close();
+    }
   }
 }
 
 // Singleton instance
 let dbInstance: InventoryDatabase | null = null;
 
-export const getDatabase = (): InventoryDatabase => {
+export const getDatabase = async (): Promise<InventoryDatabase> => {
   if (!dbInstance) {
     dbInstance = new InventoryDatabase();
+    await dbInstance.init();
   }
   return dbInstance;
 };
