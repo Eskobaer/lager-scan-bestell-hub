@@ -182,8 +182,8 @@ class InventoryDatabase {
     const count = result.count;
     
     if (count === 0) {
-      // Umfangreiche Lagerdaten für die Lagerbestand.db
-      const mockArticles: Article[] = [
+      // Artikel-Stammdaten initialisieren
+      const testArticles: Article[] = [
         {
           id: '1',
           articleNumber: 'SCR-M8-20',
@@ -306,7 +306,7 @@ class InventoryDatabase {
         }
       ];
 
-      mockArticles.forEach(article => {
+      testArticles.forEach(article => {
         this.db.run(`
           INSERT INTO articles (id, articleNumber, name, description, manufacturer, currentStock, minimumStock, location, lastUpdated, qrCode)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

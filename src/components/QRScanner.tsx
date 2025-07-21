@@ -40,8 +40,8 @@ const QRScanner = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
 
-  // Mock-Daten für Artikel
-  const mockArticles: Record<string, ScannedArticle> = {
+  // Artikel-Datenbank für QR-Scanner
+  const articles: Record<string, ScannedArticle> = {
     'SCR-M8-20': {
       articleNumber: 'SCR-M8-20',
       name: 'Schrauben M8x20',
@@ -134,7 +134,7 @@ const QRScanner = () => {
   };
 
   const handleScanResult = (code: string) => {
-    const article = mockArticles[code];
+    const article = articles[code];
     if (article) {
       setScannedArticle(article);
       toast({
@@ -173,8 +173,8 @@ const QRScanner = () => {
       timestamp: new Date().toLocaleString('de-DE')
     };
 
-    // Mock-Daten aktualisieren
-    mockArticles[scannedArticle.articleNumber] = updatedArticle;
+    // Artikel-Daten aktualisieren
+    articles[scannedArticle.articleNumber] = updatedArticle;
     setScannedArticle(updatedArticle);
 
     // Aktivitätsprotokoll hinzufügen
