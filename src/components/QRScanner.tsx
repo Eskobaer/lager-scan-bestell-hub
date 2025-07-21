@@ -1,103 +1,248 @@
-
-import React, { useState, useRef } from 'react';
-import { Camera, Flashlight, RotateCcw, CheckCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Camera, Flashlight, RotateCcw, CheckCircle, Package, Plus, Minus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import QrScanner from 'qr-scanner';
+
+interface ScannedArticle {
+  articleNumber: string;
+  name: string;
+  manufacturer: string;
+  currentStock: number;
+  minStock: number;
+  timestamp: string;
+}
+
+interface StockMovement {
+  type: 'in' | 'out';
+  quantity: number;
+  reason: string;
+  user: string;
+}
 
 const QRScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
-  const [scannedData, setScannedData] = useState('');
+  const [scannedArticle, setScannedArticle] = useState<ScannedArticle | null>(null);
   const [manualInput, setManualInput] = useState('');
-  const [lastScan, setLastScan] = useState<{code: string, timestamp: string} | null>(null);
+  const [stockMovement, setStockMovement] = useState<StockMovement>({
+    type: 'out',
+    quantity: 1,
+    reason: '',
+    user: 'Demo User'
+  });
+  const [flashlight, setFlashlight] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerRef = useRef<QrScanner | null>(null);
+
+  // Mock-Daten für Artikel
+  const mockArticles: Record<string, ScannedArticle> = {
+    'SCR-M8-20': {
+      articleNumber: 'SCR-M8-20',
+      name: 'Schrauben M8x20',
+      manufacturer: 'Würth',
+      currentStock: 150,
+      minStock: 20,
+      timestamp: new Date().toLocaleString('de-DE')
+    },
+    'DIC-STD-01': {
+      articleNumber: 'DIC-STD-01',
+      name: 'Dichtungsringe Standard',
+      manufacturer: 'Elring',
+      currentStock: 5,
+      minStock: 10,
+      timestamp: new Date().toLocaleString('de-DE')
+    },
+    'KAB-200-SW': {
+      articleNumber: 'KAB-200-SW',
+      name: 'Kabelbinder 200mm schwarz',
+      manufacturer: 'HellermannTyton',
+      currentStock: 75,
+      minStock: 25,
+      timestamp: new Date().toLocaleString('de-DE')
+    }
+  };
 
   const startScanning = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } // Rückkamera verwenden
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsScanning(true);
-        
-        toast({
-          title: "Scanner gestartet",
-          description: "Richten Sie die Kamera auf den QR-Code oder Barcode",
-        });
-      }
-    } catch (error) {
-      console.error('Kamera-Zugriff fehlgeschlagen:', error);
+      if (!videoRef.current) return;
+
+      const qrScanner = new QrScanner(
+        videoRef.current,
+        (result) => {
+          handleScanResult(result.data);
+        },
+        {
+          onDecodeError: (err) => {
+            console.log('Scan error:', err);
+          },
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+        }
+      );
+
+      scannerRef.current = qrScanner;
+      await qrScanner.start();
+      setIsScanning(true);
+
       toast({
-        title: "Kamera-Fehler",
-        description: "Kamera-Zugriff nicht möglich. Bitte Berechtigung erteilen.",
+        title: "Scanner gestartet",
+        description: "Richten Sie die Kamera auf den QR-Code",
+      });
+    } catch (error) {
+      console.error('QR Scanner Fehler:', error);
+      toast({
+        title: "Scanner-Fehler",
+        description: "QR-Scanner konnte nicht gestartet werden",
         variant: "destructive",
       });
     }
   };
 
   const stopScanning = () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
+    if (scannerRef.current) {
+      scannerRef.current.stop();
+      scannerRef.current.destroy();
+      scannerRef.current = null;
     }
     setIsScanning(false);
+    setFlashlight(false);
   };
 
-  const simulateScan = (code: string) => {
-    const timestamp = new Date().toLocaleString('de-DE');
-    setLastScan({ code, timestamp });
-    setScannedData(code);
-    
-    toast({
-      title: "Code erfasst!",
-      description: `Artikel ${code} wurde gescannt`,
-    });
-    
-    // Hier würde die echte Verarbeitung stattfinden
-    console.log('Gescannter Code:', code);
+  const toggleFlashlight = async () => {
+    if (scannerRef.current) {
+      try {
+        if (flashlight) {
+          await scannerRef.current.turnFlashOff();
+        } else {
+          await scannerRef.current.turnFlashOn();
+        }
+        setFlashlight(!flashlight);
+      } catch (error) {
+        toast({
+          title: "Taschenlampe",
+          description: "Taschenlampe wird nicht unterstützt",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleScanResult = (code: string) => {
+    const article = mockArticles[code];
+    if (article) {
+      setScannedArticle(article);
+      toast({
+        title: "Artikel gescannt!",
+        description: `${article.name} erfolgreich erkannt`,
+      });
+    } else {
+      toast({
+        title: "Artikel nicht gefunden",
+        description: `Code: ${code}`,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualInput.trim()) {
-      simulateScan(manualInput.trim());
+      handleScanResult(manualInput.trim());
       setManualInput('');
     }
   };
 
+  const processStockMovement = () => {
+    if (!scannedArticle) return;
+
+    // Hier würde die echte Lagerbuchung stattfinden
+    const newStock = stockMovement.type === 'in' 
+      ? scannedArticle.currentStock + stockMovement.quantity
+      : scannedArticle.currentStock - stockMovement.quantity;
+
+    // Mock: Artikel aktualisieren
+    const updatedArticle = {
+      ...scannedArticle,
+      currentStock: Math.max(0, newStock),
+      timestamp: new Date().toLocaleString('de-DE')
+    };
+
+    // Mock-Daten aktualisieren
+    mockArticles[scannedArticle.articleNumber] = updatedArticle;
+    setScannedArticle(updatedArticle);
+
+    // Aktivitätsprotokoll hinzufügen
+    const activity = {
+      type: stockMovement.type,
+      articleNumber: scannedArticle.articleNumber,
+      articleName: scannedArticle.name,
+      quantity: stockMovement.quantity,
+      reason: stockMovement.reason,
+      user: stockMovement.user,
+      timestamp: new Date().toLocaleString('de-DE'),
+      newStock: updatedArticle.currentStock
+    };
+
+    // Aktivität zu localStorage hinzufügen
+    const activities = JSON.parse(localStorage.getItem('stockActivities') || '[]');
+    activities.unshift(activity);
+    localStorage.setItem('stockActivities', JSON.stringify(activities.slice(0, 100))); // Nur letzte 100 behalten
+
+    toast({
+      title: `${stockMovement.type === 'in' ? 'Zugang' : 'Abgang'} erfasst`,
+      description: `${stockMovement.quantity}x ${scannedArticle.name} - Neuer Bestand: ${updatedArticle.currentStock}`,
+    });
+
+    // Prüfung auf Mindestbestand
+    if (updatedArticle.currentStock <= updatedArticle.minStock) {
+      toast({
+        title: "⚠️ Mindestbestand unterschritten",
+        description: `${scannedArticle.name}: ${updatedArticle.currentStock}/${updatedArticle.minStock}`,
+        variant: "destructive",
+      });
+    }
+
+    // Form zurücksetzen
+    setStockMovement(prev => ({ ...prev, quantity: 1, reason: '' }));
+  };
+
+  useEffect(() => {
+    return () => {
+      stopScanning();
+    };
+  }, []);
+
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="p-6 space-y-6 bg-background min-h-screen">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">QR-Code Scanner</h1>
-        <p className="text-gray-600">Scannen Sie Artikel für Lagerbewegungen</p>
+        <h1 className="text-3xl font-bold text-foreground mb-2">QR-Code Scanner</h1>
+        <p className="text-muted-foreground">Scannen Sie Artikel für Lagerbewegungen</p>
       </div>
 
       {/* Scanner-Interface */}
       <Card className="max-w-md mx-auto">
         <CardHeader className="text-center">
           <CardTitle className="flex items-center justify-center gap-2">
-            <Camera className="h-5 w-5 text-blue-600" />
+            <Camera className="h-5 w-5 text-primary" />
             Live Scanner
           </CardTitle>
           <CardDescription>
-            Verwenden Sie die Kamera zum Scannen von QR-Codes oder Barcodes
+            Verwenden Sie die Kamera zum Scannen von QR-Codes
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Kamera-Vorschau */}
           <div className="relative bg-black rounded-lg overflow-hidden aspect-square">
-            {isScanning ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            ) : (
+            <video
+              ref={videoRef}
+              className="w-full h-full object-cover"
+              style={{ display: isScanning ? 'block' : 'none' }}
+            />
+            {!isScanning && (
               <div className="flex items-center justify-center h-full text-white">
                 <div className="text-center">
                   <Camera className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -105,19 +250,12 @@ const QRScanner = () => {
                 </div>
               </div>
             )}
-            
-            {/* Scanner-Overlay */}
-            {isScanning && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-48 h-48 border-2 border-white border-dashed rounded-lg animate-pulse"></div>
-              </div>
-            )}
           </div>
 
           {/* Scanner-Steuerung */}
           <div className="flex gap-2">
             {!isScanning ? (
-              <Button onClick={startScanning} className="flex-1 bg-blue-600 hover:bg-blue-700">
+              <Button onClick={startScanning} className="flex-1">
                 <Camera className="h-4 w-4 mr-2" />
                 Scanner starten
               </Button>
@@ -127,7 +265,12 @@ const QRScanner = () => {
                   <RotateCcw className="h-4 w-4 mr-2" />
                   Stoppen
                 </Button>
-                <Button variant="outline" size="icon">
+                <Button 
+                  onClick={toggleFlashlight} 
+                  variant="outline" 
+                  size="icon"
+                  className={flashlight ? 'bg-yellow-500 text-white' : ''}
+                >
                   <Flashlight className="h-4 w-4" />
                 </Button>
               </>
@@ -136,22 +279,18 @@ const QRScanner = () => {
 
           {/* Demo-Buttons */}
           <div className="border-t pt-4">
-            <p className="text-sm text-gray-600 mb-2">Demo - Klicken zum Testen:</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => simulateScan('SCR-M8-20')}
-              >
-                Schrauben scannen
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => simulateScan('DIC-STD-01')}
-              >
-                Dichtungen scannen
-              </Button>
+            <p className="text-sm text-muted-foreground mb-2">Demo - Klicken zum Testen:</p>
+            <div className="grid grid-cols-1 gap-2">
+              {Object.keys(mockArticles).map((code) => (
+                <Button 
+                  key={code}
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleScanResult(code)}
+                >
+                  {mockArticles[code].name}
+                </Button>
+              ))}
             </div>
           </div>
         </CardContent>
@@ -162,7 +301,7 @@ const QRScanner = () => {
         <CardHeader>
           <CardTitle>Manuelle Eingabe</CardTitle>
           <CardDescription>
-            Artikelnummer direkt eingeben, falls Scannen nicht möglich ist
+            Artikelnummer direkt eingeben
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -179,17 +318,100 @@ const QRScanner = () => {
         </CardContent>
       </Card>
 
-      {/* Letzter Scan */}
-      {lastScan && (
-        <Card className="max-w-md mx-auto border-green-200 bg-green-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-8 w-8 text-green-600" />
+      {/* Gescannter Artikel */}
+      {scannedArticle && (
+        <Card className="max-w-2xl mx-auto border-green-500/20 bg-green-50/50 dark:bg-green-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Package className="h-6 w-6 text-green-600" />
+              Artikel erkannt
+              {scannedArticle.currentStock <= scannedArticle.minStock && (
+                <Badge variant="destructive">Mindestbestand!</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Artikel-Info */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="font-medium text-green-900">Erfolgreich gescannt</p>
-                <p className="text-sm text-green-700">Code: {lastScan.code}</p>
-                <p className="text-xs text-green-600">{lastScan.timestamp}</p>
+                <Label className="text-xs text-muted-foreground">Artikelnummer</Label>
+                <p className="font-medium">{scannedArticle.articleNumber}</p>
               </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Bezeichnung</Label>
+                <p className="font-medium">{scannedArticle.name}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Hersteller</Label>
+                <p className="font-medium">{scannedArticle.manufacturer}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Aktueller Bestand</Label>
+                <p className="font-medium text-lg">
+                  {scannedArticle.currentStock}
+                  <span className="text-sm text-muted-foreground ml-1">
+                    (Min: {scannedArticle.minStock})
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Lagerbewegung */}
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-medium">Lagerbewegung erfassen</h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Bewegungstyp</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Button
+                      variant={stockMovement.type === 'in' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setStockMovement(prev => ({ ...prev, type: 'in' }))}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Zugang
+                    </Button>
+                    <Button
+                      variant={stockMovement.type === 'out' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setStockMovement(prev => ({ ...prev, type: 'out' }))}
+                    >
+                      <Minus className="h-4 w-4 mr-1" />
+                      Abgang
+                    </Button>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="quantity">Menge</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    min="1"
+                    value={stockMovement.quantity}
+                    onChange={(e) => setStockMovement(prev => ({ 
+                      ...prev, 
+                      quantity: parseInt(e.target.value) || 1 
+                    }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="reason">Grund (optional)</Label>
+                <Input
+                  id="reason"
+                  placeholder="z.B. Produktion, Reparatur, Lieferung..."
+                  value={stockMovement.reason}
+                  onChange={(e) => setStockMovement(prev => ({ ...prev, reason: e.target.value }))}
+                />
+              </div>
+
+              <Button onClick={processStockMovement} className="w-full" size="lg">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Buchung durchführen
+              </Button>
             </div>
           </CardContent>
         </Card>
