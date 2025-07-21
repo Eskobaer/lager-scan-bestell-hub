@@ -26,11 +26,13 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <AuthProvider>
+    <React.Fragment>
       <Toaster />
       <Sonner />
-      <AppContent />
-    </AuthProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </React.Fragment>
   );
 };
 
