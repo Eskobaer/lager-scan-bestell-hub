@@ -42,10 +42,10 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="p-6 space-y-6 bg-background min-h-screen">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Lager Dashboard</h1>
-        <p className="text-gray-600">Übersicht über Ihr digitales Lagersystem</p>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Lager Dashboard</h1>
+        <p className="text-muted-foreground">Übersicht über Ihr digitales Lagersystem</p>
       </div>
 
       {/* Statistik-Karten */}
@@ -71,7 +71,7 @@ const Dashboard = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             Kritische Bestände - Sofort bestellen!
           </CardTitle>
           <CardDescription>
@@ -81,16 +81,16 @@ const Dashboard = () => {
         <CardContent>
           <div className="space-y-4">
             {criticalItems.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-red-50 rounded-lg border-l-4 border-red-500">
+              <div key={index} className="flex items-center justify-between p-4 bg-destructive/10 rounded-lg border-l-4 border-destructive">
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{item.name}</h4>
-                  <p className="text-sm text-gray-600">Art.-Nr.: {item.articleNumber}</p>
+                  <h4 className="font-medium text-foreground">{item.name}</h4>
+                  <p className="text-sm text-muted-foreground">Art.-Nr.: {item.articleNumber}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-red-600">
+                  <p className="text-sm font-medium text-destructive">
                     {item.current} / {item.minimum} Stk.
                   </p>
-                  <p className="text-xs text-gray-500">Bestand / Minimum</p>
+                  <p className="text-xs text-muted-foreground">Bestand / Minimum</p>
                 </div>
               </div>
             ))}
