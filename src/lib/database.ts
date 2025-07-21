@@ -366,7 +366,7 @@ class InventoryDatabase {
     return null;
   }
 
-  createArticle(article: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>): Article {
+  createArticle(article: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>, user?: string): Article {
     const id = Date.now().toString();
     const lastUpdated = new Date().toISOString().split('T')[0];
     const qrCode = `QR_${article.articleNumber}`;
@@ -387,13 +387,13 @@ class InventoryDatabase {
       qrCode
     ]);
 
-    this.logActivity('create', article.articleNumber, article.name, undefined, undefined, 'System');
+    this.logActivity('create', article.articleNumber, article.name, undefined, undefined, user || 'System');
     this.saveToLocalStorage();
 
     return { ...article, id, lastUpdated, qrCode };
   }
 
-  updateArticle(id: string, article: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>): Article {
+  updateArticle(id: string, article: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>, user?: string): Article {
     const lastUpdated = new Date().toISOString().split('T')[0];
     
     const existingStmt = this.db.prepare('SELECT * FROM articles WHERE id = ?');
@@ -419,7 +419,7 @@ class InventoryDatabase {
       id
     ]);
 
-    this.logActivity('update', article.articleNumber, article.name, undefined, undefined, 'System', {
+    this.logActivity('update', article.articleNumber, article.name, undefined, undefined, user || 'System', {
       oldData: existing,
       newData: article
     });
@@ -428,7 +428,7 @@ class InventoryDatabase {
     return { ...article, id, lastUpdated, qrCode: existing.qrCode };
   }
 
-  deleteArticle(id: string): void {
+  deleteArticle(id: string, user?: string): void {
     const stmt = this.db.prepare('SELECT * FROM articles WHERE id = ?');
     stmt.bind([id]);
     stmt.step();
@@ -437,7 +437,7 @@ class InventoryDatabase {
     
     this.db.run('DELETE FROM articles WHERE id = ?', [id]);
     
-    this.logActivity('delete', article.articleNumber, article.name, undefined, undefined, 'System');
+    this.logActivity('delete', article.articleNumber, article.name, undefined, undefined, user || 'System');
     this.saveToLocalStorage();
   }
 

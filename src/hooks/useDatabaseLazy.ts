@@ -22,10 +22,10 @@ export const useArticles = () => {
     }
   };
 
-  const createArticle = async (articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
+  const createArticle = async (articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>, user?: string) => {
     try {
       const db = await getDatabase();
-      const newArticle = db.createArticle(articleData);
+      const newArticle = db.createArticle(articleData, user);
       await loadArticles(); // Reload to get fresh data
       return newArticle;
     } catch (error) {
@@ -34,10 +34,10 @@ export const useArticles = () => {
     }
   };
 
-  const updateArticle = async (id: string, articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
+  const updateArticle = async (id: string, articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>, user?: string) => {
     try {
       const db = await getDatabase();
-      const updatedArticle = db.updateArticle(id, articleData);
+      const updatedArticle = db.updateArticle(id, articleData, user);
       await loadArticles(); // Reload to get fresh data
       return updatedArticle;
     } catch (error) {
@@ -46,10 +46,10 @@ export const useArticles = () => {
     }
   };
 
-  const deleteArticle = async (id: string) => {
+  const deleteArticle = async (id: string, user?: string) => {
     try {
       const db = await getDatabase();
-      db.deleteArticle(id);
+      db.deleteArticle(id, user);
       await loadArticles(); // Reload to get fresh data
     } catch (error) {
       console.error('Error deleting article:', error);

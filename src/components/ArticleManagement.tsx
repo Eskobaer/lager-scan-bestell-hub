@@ -9,6 +9,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useArticles } from '@/hooks/useDatabaseLazy';
+import { useAuth } from '@/hooks/useAuth';
 import ArticleForm, { Article } from './ArticleForm';
 
 const ArticleManagement = () => {
@@ -16,6 +17,7 @@ const ArticleManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
   const { articles, loading, createArticle, updateArticle, deleteArticle } = useArticles();
 
   const filteredArticles = articles.filter(article =>
@@ -35,7 +37,7 @@ const ArticleManagement = () => {
 
   const handleAddArticle = async (articleData: Omit<Article, 'id' | 'lastUpdated' | 'qrCode'>) => {
     try {
-      const newArticle = await createArticle(articleData);
+      const newArticle = await createArticle(articleData, user?.username);
       setIsDialogOpen(false);
       
       toast({
@@ -55,7 +57,7 @@ const ArticleManagement = () => {
     if (!editingArticle) return;
     
     try {
-      const updatedArticle = await updateArticle(editingArticle.id, articleData);
+      const updatedArticle = await updateArticle(editingArticle.id, articleData, user?.username);
       setIsDialogOpen(false);
       setEditingArticle(null);
       
@@ -76,7 +78,7 @@ const ArticleManagement = () => {
     const article = articles.find(a => a.id === articleId);
     
     try {
-      await deleteArticle(articleId);
+      await deleteArticle(articleId, user?.username);
       
       toast({
         title: "Artikel gelöscht",
