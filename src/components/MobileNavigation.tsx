@@ -17,7 +17,7 @@ const MobileNavigation: React.FC<NavigationProps> = ({ activeTab, onTabChange })
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
       <div className="grid grid-cols-5">
         {tabs.map((tab) => {
           const IconComponent = tab.icon;
@@ -29,11 +29,11 @@ const MobileNavigation: React.FC<NavigationProps> = ({ activeTab, onTabChange })
               onClick={() => onTabChange(tab.id)}
               className={`flex flex-col items-center gap-1 py-2 px-1 transition-colors ${
                 isActive 
-                  ? 'text-blue-600 bg-blue-50' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-primary bg-primary/10' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
             >
-              <IconComponent className={`h-5 w-5 ${isActive ? 'text-blue-600' : 'text-gray-600'}`} />
+              <IconComponent className={`h-5 w-5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
               <span className="text-xs font-medium">{tab.label}</span>
             </button>
           );
