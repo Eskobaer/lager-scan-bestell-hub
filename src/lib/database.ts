@@ -387,7 +387,7 @@ class InventoryDatabase {
       qrCode
     ]);
 
-    this.logActivity('create', article.articleNumber, article.name, undefined, undefined, 'Demo User');
+    this.logActivity('create', article.articleNumber, article.name, undefined, undefined, 'System');
     this.saveToLocalStorage();
 
     return { ...article, id, lastUpdated, qrCode };
@@ -419,7 +419,7 @@ class InventoryDatabase {
       id
     ]);
 
-    this.logActivity('update', article.articleNumber, article.name, undefined, undefined, 'Demo User', {
+    this.logActivity('update', article.articleNumber, article.name, undefined, undefined, 'System', {
       oldData: existing,
       newData: article
     });
@@ -437,7 +437,7 @@ class InventoryDatabase {
     
     this.db.run('DELETE FROM articles WHERE id = ?', [id]);
     
-    this.logActivity('delete', article.articleNumber, article.name, undefined, undefined, 'Demo User');
+    this.logActivity('delete', article.articleNumber, article.name, undefined, undefined, 'System');
     this.saveToLocalStorage();
   }
 

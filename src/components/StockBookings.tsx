@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { useArticles, useStockBookings } from '@/hooks/useDatabase';
+import { useAuth } from '@/hooks/useAuth';
 
 const StockBookings = () => {
+  const { user } = useAuth();
   const { articles, loading: articlesLoading } = useArticles();
   const { bookings, loading: bookingsLoading, createBooking } = useStockBookings();
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
@@ -21,7 +23,7 @@ const StockBookings = () => {
     articleNumber: '',
     quantity: 1,
     reason: '',
-    user: 'Demo User'
+    user: user?.username || 'System'
   });
 
   const handleArticleSelect = (articleNumber: string) => {
@@ -60,7 +62,7 @@ const StockBookings = () => {
         articleNumber: '',
         quantity: 1,
         reason: '',
-        user: 'Demo User'
+        user: user?.username || 'System'
       });
       setSelectedArticle(null);
     } catch (error: any) {

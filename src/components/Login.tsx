@@ -93,11 +93,6 @@ const Login = () => {
               {isLoading ? "Wird angemeldet..." : "Anmelden"}
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              Demo Login: admin / admin
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

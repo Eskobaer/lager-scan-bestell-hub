@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import QrScanner from 'qr-scanner';
 
 interface ScannedArticle {
@@ -25,6 +26,7 @@ interface StockMovement {
 }
 
 const QRScanner = () => {
+  const { user } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedArticle, setScannedArticle] = useState<ScannedArticle | null>(null);
   const [manualInput, setManualInput] = useState('');
@@ -32,7 +34,7 @@ const QRScanner = () => {
     type: 'out',
     quantity: 1,
     reason: '',
-    user: 'Demo User'
+    user: user?.username || 'System'
   });
   const [flashlight, setFlashlight] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -277,22 +279,6 @@ const QRScanner = () => {
             )}
           </div>
 
-          {/* Demo-Buttons */}
-          <div className="border-t pt-4">
-            <p className="text-sm text-muted-foreground mb-2">Demo - Klicken zum Testen:</p>
-            <div className="grid grid-cols-1 gap-2">
-              {Object.keys(mockArticles).map((code) => (
-                <Button 
-                  key={code}
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleScanResult(code)}
-                >
-                  {mockArticles[code].name}
-                </Button>
-              ))}
-            </div>
-          </div>
         </CardContent>
       </Card>
 
