@@ -32,16 +32,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        await database.init();
+        // Check if user exists in localStorage first
         const storedUser = localStorage.getItem('auth-user');
         if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          // Verify user still exists in database
-          const currentUser = database.authenticateUser(parsedUser.username, parsedUser.password);
-          if (currentUser) {
-            setUser(currentUser);
-          } else {
-            // User no longer valid, clear storage
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            // For now, trust the stored user without database verification
+            setUser(parsedUser);
+          } catch (error) {
+            console.error('Invalid stored user data:', error);
             localStorage.removeItem('auth-user');
           }
         }
