@@ -28,10 +28,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('auth-user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const initializeAuth = async () => {
+      try {
+        await database.init();
+        const storedUser = localStorage.getItem('auth-user');
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          // Verify user still exists in database
+          const currentUser = database.authenticateUser(parsedUser.username, parsedUser.password);
+          if (currentUser) {
+            setUser(currentUser);
+          } else {
+            // User no longer valid, clear storage
+            localStorage.removeItem('auth-user');
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        localStorage.removeItem('auth-user');
+      }
+    };
+    
+    initializeAuth();
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
