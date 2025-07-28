@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Plus, Minus, Search, Filter, Calendar, User, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { useArticles, useStockBookings } from '@/hooks/useDatabase';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocation } from 'react-router-dom';
 
 const StockBookings = () => {
+  const location = useLocation();
   const { user } = useAuth();
   const { articles, loading: articlesLoading } = useArticles();
   const { bookings, loading: bookingsLoading, createBooking } = useStockBookings();
@@ -19,12 +21,25 @@ const StockBookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'in' | 'out'>('all');
   const [formData, setFormData] = useState({
-    type: 'out' as 'in' | 'out',
+    type: 'in' as 'in' | 'out', // Standard auf "Eingang" für kritische Bestände
     articleNumber: '',
     quantity: 1,
     reason: '',
     user: user?.username || 'System'
   });
+
+  // Effekt für vorselektierten Artikel vom Dashboard
+  useEffect(() => {
+    const selectedArticleNumber = location.state?.selectedArticle;
+    if (selectedArticleNumber && articles.length > 0) {
+      handleArticleSelect(selectedArticleNumber);
+      setFormData(prev => ({ 
+        ...prev, 
+        type: 'in', // Für kritische Bestände immer Eingang
+        reason: 'Nachbestellung aufgrund kritischen Bestands'
+      }));
+    }
+  }, [location.state, articles]);
 
   const handleArticleSelect = (articleNumber: string) => {
     const article = articles.find(a => a.articleNumber === articleNumber);
