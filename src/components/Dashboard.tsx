@@ -2,43 +2,78 @@
 import React from 'react';
 import { Package, AlertTriangle, TrendingUp, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useArticles, useStockBookings, useActivities } from '@/hooks/useDatabaseLazy';
 
 const Dashboard = () => {
+  const { articles, loading: articlesLoading } = useArticles();
+  const { bookings, loading: bookingsLoading } = useStockBookings();
+  const { activities, loading: activitiesLoading } = useActivities();
+
+  // Berechne echte Statistiken
+  const totalArticles = articles.length;
+  const criticalItems = articles.filter(article => 
+    article.currentStock <= article.minimumStock
+  );
+  const criticalCount = criticalItems.length;
+
+  // Bewegungen heute berechnen
+  const today = new Date().toDateString();
+  const todaysBookings = bookings.filter(booking => 
+    new Date(booking.timestamp).toDateString() === today
+  );
+  const todaysMovements = todaysBookings.length;
+
+  // Bewegungen gestern für Vergleich
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdaysBookings = bookings.filter(booking => 
+    new Date(booking.timestamp).toDateString() === yesterday.toDateString()
+  );
+  const yesterdaysMovements = yesterdaysBookings.length;
+  
+  const movementChange = yesterdaysMovements > 0 
+    ? Math.round(((todaysMovements - yesterdaysMovements) / yesterdaysMovements) * 100)
+    : 0;
+
+  // Aktive Nutzer (letzte 24 Stunden)
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+  const recentActivities = activities.filter(activity => 
+    new Date(activity.timestamp) > oneDayAgo
+  );
+  const activeUsers = new Set(recentActivities.map(activity => activity.user)).size;
+
   const stats = [
     {
       title: "Artikel im Lager",
-      value: "234",
-      change: "+12 diese Woche",
+      value: articlesLoading ? "..." : totalArticles.toString(),
+      change: `${totalArticles} Artikel erfasst`,
       icon: Package,
       color: "text-blue-600"
     },
     {
       title: "Kritische Bestände",
-      value: "8",
-      change: "Sofortige Bestellung nötig",
+      value: articlesLoading ? "..." : criticalCount.toString(),
+      change: criticalCount > 0 ? "Sofortige Bestellung nötig" : "Alle Bestände okay",
       icon: AlertTriangle,
-      color: "text-red-600"
+      color: criticalCount > 0 ? "text-red-600" : "text-green-600"
     },
     {
       title: "Bewegungen heute",
-      value: "47",
-      change: "+18% vs. gestern",
+      value: bookingsLoading ? "..." : todaysMovements.toString(),
+      change: movementChange > 0 ? `+${movementChange}% vs. gestern` : 
+              movementChange < 0 ? `${movementChange}% vs. gestern` : 
+              "Gleich wie gestern",
       icon: TrendingUp,
-      color: "text-green-600"
+      color: movementChange >= 0 ? "text-green-600" : "text-red-600"
     },
     {
       title: "Aktive Nutzer",
-      value: "12",
-      change: "Mitarbeiter online",
+      value: activitiesLoading ? "..." : activeUsers.toString(),
+      change: "Nutzer (letzte 24h)",
       icon: Users,
       color: "text-purple-600"
     }
-  ];
-
-  const criticalItems = [
-    { name: "Schrauben M8x20", current: 5, minimum: 50, articleNumber: "SCR-M8-20" },
-    { name: "Dichtungsringe", current: 12, minimum: 100, articleNumber: "DIC-STD-01" },
-    { name: "Kabelbinder 200mm", current: 23, minimum: 200, articleNumber: "KAB-200-SW" }
   ];
 
   return (
@@ -80,7 +115,14 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {criticalItems.map((item, index) => (
+            {articlesLoading ? (
+              <div className="text-center py-4">Lade Daten...</div>
+            ) : criticalItems.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                Keine kritischen Bestände - alle Artikel haben ausreichend Lagerbestand! 🎉
+              </div>
+            ) : (
+              criticalItems.map((item, index) => (
               <div key={index} className="flex items-center justify-between p-4 bg-destructive/10 rounded-lg border-l-4 border-destructive">
                 <div className="flex-1">
                   <h4 className="font-medium text-foreground">{item.name}</h4>
@@ -88,12 +130,13 @@ const Dashboard = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-destructive">
-                    {item.current} / {item.minimum} Stk.
+                    {item.currentStock} / {item.minimumStock} Stk.
                   </p>
                   <p className="text-xs text-muted-foreground">Bestand / Minimum</p>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
