@@ -25,7 +25,12 @@ interface StockMovement {
   user: string;
 }
 
-const QRScanner = () => {
+interface QRScannerProps {
+  selectedArticle?: string | null;
+  onClearSelection?: () => void;
+}
+
+const QRScanner = ({ selectedArticle, onClearSelection }: QRScannerProps) => {
   const { user } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedArticle, setScannedArticle] = useState<ScannedArticle | null>(null);

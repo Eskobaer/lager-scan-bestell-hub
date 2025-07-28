@@ -12,7 +12,12 @@ import { useArticles, useStockBookings } from '@/hooks/useDatabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 
-const StockBookings = () => {
+interface StockBookingsProps {
+  selectedArticle?: string | null;
+  onClearSelection?: () => void;
+}
+
+const StockBookings = ({ selectedArticle: propSelectedArticle, onClearSelection }: StockBookingsProps) => {
   const location = useLocation();
   const { user } = useAuth();
   const { articles, loading: articlesLoading } = useArticles();
@@ -30,7 +35,7 @@ const StockBookings = () => {
 
   // Effekt für vorselektierten Artikel vom Dashboard
   useEffect(() => {
-    const selectedArticleNumber = location.state?.selectedArticle;
+    const selectedArticleNumber = propSelectedArticle || location.state?.selectedArticle;
     if (selectedArticleNumber && articles.length > 0) {
       handleArticleSelect(selectedArticleNumber);
       setFormData(prev => ({ 
@@ -38,8 +43,10 @@ const StockBookings = () => {
         type: 'in', // Für kritische Bestände immer Eingang
         reason: 'Nachbestellung aufgrund kritischen Bestands'
       }));
+      // Clear selection nach dem Laden
+      onClearSelection?.();
     }
-  }, [location.state, articles]);
+  }, [propSelectedArticle, location.state, articles]);
 
   const handleArticleSelect = (articleNumber: string) => {
     const article = articles.find(a => a.articleNumber === articleNumber);

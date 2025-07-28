@@ -8,20 +8,22 @@ import ActivityLog from '@/components/ActivityLog';
 import EmailSettings from '@/components/EmailSettings';
 import UserManagement from '@/components/UserManagement';
 import MobileNavigation from '@/components/MobileNavigation';
+import StockBookings from '@/components/StockBookings';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedArticleForBooking, setSelectedArticleForBooking] = useState<string | null>(null);
   const { user } = useAuth();
 
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onTabChange={setActiveTab} onArticleSelect={setSelectedArticleForBooking} />;
       case 'articles':
         return <ArticleManagement />;
       case 'scanner':
-        return <QRScanner />;
+        return <QRScanner selectedArticle={selectedArticleForBooking} onClearSelection={() => setSelectedArticleForBooking(null)} />;
       case 'labels':
         return <LabelGenerator />;
       case 'log':
@@ -31,7 +33,7 @@ const Index = () => {
       case 'users':
         return <UserManagement />;
       default:
-        return <Dashboard />;
+        return <Dashboard onTabChange={setActiveTab} onArticleSelect={setSelectedArticleForBooking} />;
     }
   };
 

@@ -3,11 +3,14 @@ import React from 'react';
 import { Package, AlertTriangle, TrendingUp, Users, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
 import { useArticles, useStockBookings, useActivities } from '@/hooks/useDatabaseLazy';
 
-const Dashboard = () => {
-  const navigate = useNavigate();
+interface DashboardProps {
+  onTabChange?: (tab: string) => void;
+  onArticleSelect?: (articleNumber: string) => void;
+}
+
+const Dashboard = ({ onTabChange, onArticleSelect }: DashboardProps) => {
   const { articles, loading: articlesLoading } = useArticles();
   const { bookings, loading: bookingsLoading } = useStockBookings();
   const { activities, loading: activitiesLoading } = useActivities();
@@ -53,7 +56,7 @@ const Dashboard = () => {
       change: `${totalArticles} Artikel erfasst`,
       icon: Package,
       color: "text-blue-600",
-      onClick: () => navigate('/article-management')
+      onClick: () => onTabChange?.('articles')
     },
     {
       title: "Kritische Bestände",
@@ -74,7 +77,7 @@ const Dashboard = () => {
               "Gleich wie gestern",
       icon: TrendingUp,
       color: movementChange >= 0 ? "text-green-600" : "text-red-600",
-      onClick: () => navigate('/stock-bookings')
+      onClick: () => onTabChange?.('scanner') // Scanner zum Einbuchen
     },
     {
       title: "Aktive Nutzer",
@@ -82,7 +85,7 @@ const Dashboard = () => {
       change: "Nutzer (letzte 24h)",
       icon: Users,
       color: "text-purple-600",
-      onClick: () => navigate('/activity-log')
+      onClick: () => onTabChange?.('log')
     }
   ];
 
@@ -155,7 +158,10 @@ const Dashboard = () => {
                     </div>
                     <Button 
                       size="sm" 
-                      onClick={() => navigate('/stock-bookings', { state: { selectedArticle: item.articleNumber } })}
+                      onClick={() => {
+                        onArticleSelect?.(item.articleNumber);
+                        onTabChange?.('scanner');
+                      }}
                       className="whitespace-nowrap"
                     >
                       Einbuchen
