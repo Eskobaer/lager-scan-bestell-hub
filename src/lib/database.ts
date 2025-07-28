@@ -115,9 +115,17 @@ class InventoryDatabase {
         minimumStock INTEGER NOT NULL DEFAULT 0,
         location TEXT,
         lastUpdated TEXT NOT NULL,
-        qrCode TEXT
+        qrCode TEXT,
+        imageUrl TEXT
       )
     `);
+
+    // Check if imageUrl column exists, if not add it
+    try {
+      this.db.run(`ALTER TABLE articles ADD COLUMN imageUrl TEXT`);
+    } catch (error) {
+      // Column already exists, ignore error
+    }
 
     // Stock bookings table
     this.db.run(`
@@ -352,7 +360,8 @@ class InventoryDatabase {
       minimumStock: row.minimumStock,
       location: row.location,
       lastUpdated: row.lastUpdated,
-      qrCode: row.qrCode
+      qrCode: row.qrCode,
+      imageUrl: row.imageUrl
     }));
   }
 
@@ -374,8 +383,8 @@ class InventoryDatabase {
     const qrCode = `QR_${article.articleNumber}`;
 
     this.db.run(`
-      INSERT INTO articles (id, articleNumber, name, description, manufacturer, currentStock, minimumStock, location, lastUpdated, qrCode)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO articles (id, articleNumber, name, description, manufacturer, currentStock, minimumStock, location, lastUpdated, qrCode, imageUrl)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       id,
       article.articleNumber,
@@ -386,7 +395,8 @@ class InventoryDatabase {
       article.minimumStock,
       article.location,
       lastUpdated,
-      qrCode
+      qrCode,
+      article.imageUrl || null
     ]);
 
     this.logActivity('create', article.articleNumber, article.name, undefined, undefined, user || 'System');
@@ -407,7 +417,7 @@ class InventoryDatabase {
     this.db.run(`
       UPDATE articles 
       SET articleNumber = ?, name = ?, description = ?, manufacturer = ?, 
-          currentStock = ?, minimumStock = ?, location = ?, lastUpdated = ?
+          currentStock = ?, minimumStock = ?, location = ?, lastUpdated = ?, imageUrl = ?
       WHERE id = ?
     `, [
       article.articleNumber,
@@ -418,6 +428,7 @@ class InventoryDatabase {
       article.minimumStock,
       article.location,
       lastUpdated,
+      article.imageUrl || null,
       id
     ]);
 

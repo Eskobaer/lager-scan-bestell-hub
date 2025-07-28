@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Edit, Search, Package, Trash2, QrCode } from 'lucide-react';
+import { Plus, Edit, Search, Package, Trash2, QrCode, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -162,9 +162,24 @@ const ArticleManagement = () => {
                 key={article.id} 
                 className="hover:shadow-lg transition-all duration-300 hover-scale animate-fade-in"
                 style={{ animationDelay: `${index * 0.1}s` }}
-              >
+                >
                 <CardHeader>
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start gap-4">
+                    {/* Artikelbild */}
+                    <div className="flex-shrink-0">
+                      {article.imageUrl ? (
+                        <img 
+                          src={article.imageUrl} 
+                          alt={article.name}
+                          className="w-16 h-16 object-cover rounded-md border"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
+                          <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="flex-1">
                       <CardTitle className="flex items-center gap-2">
                         <Package className="h-5 w-5 text-primary" />

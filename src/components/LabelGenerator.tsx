@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { QrCode, Printer, Download, Tag, FileText } from 'lucide-react';
+import { QrCode, Printer, Download, Tag, FileText, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ interface LabelData {
   location: string;
   minStock: string;
   size: 'small' | 'medium' | 'large';
+  imageUrl?: string; // Neues Feld für Produktbild
 }
 
 const LabelGenerator = () => {
@@ -25,10 +26,13 @@ const LabelGenerator = () => {
     manufacturer: '',
     location: '',
     minStock: '',
-    size: 'medium'
+    size: 'medium',
+    imageUrl: ''
   });
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const sampleArticles = [
@@ -327,6 +331,63 @@ const LabelGenerator = () => {
               />
             </div>
 
+            {/* Produktbild Upload */}
+            <div className="space-y-2">
+              <Label htmlFor="productImage">Produktbild (optional)</Label>
+              <div className="flex items-center gap-4">
+                {imagePreview ? (
+                  <div className="relative">
+                    <img 
+                      src={imagePreview} 
+                      alt="Produkt Vorschau" 
+                      className="w-16 h-16 object-cover rounded-md border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="absolute -top-2 -right-2 w-5 h-5 p-0"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview('');
+                        setLabelData(prev => ({ ...prev, imageUrl: '' }));
+                      }}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 border-2 border-dashed border-muted-foreground/25 rounded-md flex items-center justify-center">
+                    <Upload className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    id="productImage"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setImageFile(file);
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const result = reader.result as string;
+                          setImagePreview(result);
+                          setLabelData(prev => ({ ...prev, imageUrl: result }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Wird auf dem Lagerschild angezeigt
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="size">Schildgröße</Label>
               <Select value={labelData.size} onValueChange={(value: 'small' | 'medium' | 'large') => handleInputChange('size', value)}>
@@ -395,6 +456,17 @@ const LabelGenerator = () => {
                     </div>
                   )}
                 </div>
+                
+                {/* Produktbild */}
+                {imagePreview && (
+                  <div className="flex-shrink-0">
+                    <img 
+                      src={imagePreview} 
+                      alt="Produkt" 
+                      className="w-12 h-12 object-cover rounded border"
+                    />
+                  </div>
+                )}
                 
                 {/* Artikel-Info */}
                 <div className="flex-1 min-w-0">

@@ -77,6 +77,9 @@ const QRScanner = ({ selectedArticle, onClearSelection }: QRScannerProps) => {
     try {
       if (!videoRef.current) return;
 
+      // Kameraberechtigung anfordern
+      await navigator.mediaDevices.getUserMedia({ video: true });
+
       const qrScanner = new QrScanner(
         videoRef.current,
         (result) => {
@@ -84,10 +87,11 @@ const QRScanner = ({ selectedArticle, onClearSelection }: QRScannerProps) => {
         },
         {
           onDecodeError: (err) => {
-            console.log('Scan error:', err);
+            // Normale Decodierungsfehler ignorieren
           },
           highlightScanRegion: true,
           highlightCodeOutline: true,
+          preferredCamera: 'environment' // Rückkamera bevorzugen
         }
       );
 
@@ -101,9 +105,17 @@ const QRScanner = ({ selectedArticle, onClearSelection }: QRScannerProps) => {
       });
     } catch (error) {
       console.error('QR Scanner Fehler:', error);
+      let errorMessage = "QR-Scanner konnte nicht gestartet werden";
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = "Kameraberechtigung wurde verweigert. Bitte erlauben Sie den Kamerazugriff in den Browsereinstellungen.";
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = "Keine Kamera gefunden. Stellen Sie sicher, dass eine Kamera angeschlossen ist.";
+      }
+      
       toast({
         title: "Scanner-Fehler",
-        description: "QR-Scanner konnte nicht gestartet werden",
+        description: errorMessage,
         variant: "destructive",
       });
     }
